@@ -1,61 +1,70 @@
 import streamlit as st
-import matplotlib.pyplot as plt
-import numpy as np
+import pandas as pd
 from PIL import Image
 
-# Configurazione Pagina
-st.set_page_config(page_title="ALSA - Pianificatore", layout="wide")
+# Configurazione pagina e stile
+st.set_page_config(layout="wide", page_title="ALSA Mission Control")
 
-st.title("🔭 ALSA - Pianificatore Astrofotografico")
-st.sidebar.header("⚙️ Pannello di Controllo")
+st.markdown("""
+    <style>
+    .stApp { background-color: #f0f2f6; }
+    .card { background-color: #ffffff; border-radius: 15px; padding: 20px; border: 1px solid #dcdcdc; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- INPUT NELLA BARRA LATERALE ---
-soggetto = st.sidebar.text_input("Soggetto Target", "M31 - Andromeda")
-target_ore = st.sidebar.number_input("Traguardo Ore", 1.0, 100.0, 40.0)
+# --- SIDEBAR ---
+with st.sidebar:
+    st.header("🌌 Mission Setup")
+    autore = st.text_input("Comandante", "Socio ALSA")
+    soggetto = st.text_input("Target", "Sh2-91")
+    target_ore = st.number_input("Goal (h)", 1.0, 100.0, 40.0)
+    img_file = st.file_uploader("Carica Reference", type=['jpg', 'png'])
+    st.divider()
+    st.subheader("🛠️ Hardware")
+    ottica = st.text_input("Ottica", "AP 86/460")
+    camera = st.text_input("Camera", "Toup 2600 MM")
+    montatura = st.text_input("Montatura", "EQ8-R Pro")
+    guida = st.text_input("Guida", "ZWO OAG-L")
+    
+    st.subheader("📸 Esposizioni")
+    ha_s, ha_n = st.number_input("Hα (sec)", 0, 999, 300), st.number_input("Hα (scatti)", 0, 999, 0)
+    o3_s, o3_n = st.number_input("OIII (sec)", 0, 999, 300), st.number_input("OIII (scatti)", 0, 999, 0)
+    si2_s, si2_n = st.number_input("SII (sec)", 0, 999, 300), st.number_input("SII (scatti)", 0, 999, 0)
+    hb_s, hb_n = st.number_input("Hβ (sec)", 0, 999, 300), st.number_input("Hβ (scatti)", 0, 999, 0)
+    bb_s, bb_n = st.number_input("Broadband (sec)", 0, 999, 180), st.number_input("Broadband (scatti)", 0, 999, 0)
 
-st.sidebar.subheader("🛠️ Attrezzatura")
-montatura = st.sidebar.text_input("Montatura", "EQ8-R Pro")
-ottica = st.sidebar.text_input("Ottica", "Newton 150/750")
-camera = st.sidebar.text_input("Camera", "Toup 2600 MM")
-guida = st.sidebar.text_input("Guida", "OAG-L")
+# --- CALCOLI ---
+totale = ((ha_s*ha_n)+(o3_s*o3_n)+(si2_s*si2_n)+(hb_s*hb_n)+(bb_s*bb_n)) / 3600
+progresso = min(totale / target_ore, 1.0)
 
-st.sidebar.subheader("📸 Esposizioni (Secondi / Scatti)")
-ha_s = st.sidebar.number_input("Hα (sec)", 0, 900, 300); ha_n = st.sidebar.number_input("Hα (scatti)", 0, 500, 0)
-o3_s = st.sidebar.number_input("OIII (sec)", 0, 900, 300); o3_n = st.sidebar.number_input("OIII (scatti)", 0, 500, 0)
-bb_s = st.sidebar.number_input("Broadband (sec)", 0, 900, 180); bb_n = st.sidebar.number_input("Broadband (scatti)", 0, 500, 120)
+# --- LAYOUT FINALE ---
+st.title(f"🔭 {soggetto.upper()}")
+st.write(f"**Missione guidata da:** {autore}")
 
-# Caricamento Immagine
-img_file = st.sidebar.file_uploader("Carica Immagine Target", type=['png', 'jpg', 'jpeg'])
+col1, col2 = st.columns([1, 1.2])
 
-# --- LOGICA CALCOLI ---
-ore_tot = ((ha_s*ha_n) + (o3_s*o3_n) + (bb_s*bb_n)) / 3600.0
-progresso = min((ore_tot / target_ore) * 100, 100.0)
+with col1:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    if img_file: st.image(img_file, use_container_width=True)
+    else: st.info("Carica immagine target")
+    st.subheader("Progresso Missione")
+    st.progress(progresso)
+    st.markdown(f"### {totale:.1f} / {target_ore:.1f} Ore")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- GRAFICA ---
-fig = plt.figure(figsize=(12, 8))
-fig.patch.set_facecolor('#1a252f')
-gs = fig.add_gridspec(2, 2, width_ratios=[1.2, 1], height_ratios=[1.3, 0.7])
-ax_img, ax_prog, ax_info = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[:, 1])
-
-for ax in [ax_img, ax_prog, ax_info]:
-    ax.set_facecolor('#1a252f'); ax.axis('off')
-
-if img_file:
-    ax_img.imshow(Image.open(img_file))
-else:
-    ax_img.text(0.5, 0.5, "Carica immagine\ndalla barra laterale", color='white', ha='center')
-
-# Barra progresso
-ax_prog.add_patch(plt.Rectangle((0, 0.45), 1, 0.2, facecolor='#34495e'))
-ax_prog.add_patch(plt.Rectangle((0, 0.45), progresso/100, 0.2, facecolor='#00a8ff'))
-ax_prog.text(0, 0.7, f"Fatto: {ore_tot:.1f}h", color='white', fontweight='bold')
-ax_prog.text(1, 0.7, f"Target: {target_ore:.1f}h", color='#a0b0c0', ha='right')
-ax_prog.text(0.5, 0.5, f"{progresso:.1f}%", color='white', ha='center', va='center', fontweight='bold')
-
-# Info Hardware
-y = 0.9
-ax_info.text(0, y, "CONFIGURAZIONE", color='#00a8ff', fontweight='bold', fontsize=12); y-=0.1
-for k, v in [("Ottica", ottica), ("Camera", camera), ("Montatura", montatura)]:
-    ax_info.text(0, y, f"{k}: {v}", color='white'); y-=0.1
-
-st.pyplot(fig)
+with col2:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("⚙️ Configurazione Setup")
+    st.markdown(f"**Ottica:** {ottica}  \n**Camera:** {camera}  \n**Montatura:** {montatura}  \n**Guida:** {guida}")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.write("") 
+    
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("📊 Analisi Esposizioni")
+    data = {"Filtro": ["Hα", "OIII", "SII", "Hβ", "Broadband"], 
+            "Scatti": [ha_n, o3_n, si2_n, hb_n, bb_n],
+            "Posa": [f"{ha_s}s", f"{o3_s}s", f"{si2_s}s", f"{hb_s}s", f"{bb_s}s"]}
+    df = pd.DataFrame(data)
+    st.table(df[df["Scatti"] > 0])
+    st.markdown('</div>', unsafe_allow_html=True)
