@@ -4,3 +4,4 @@ astropy
 pandas
 Pillow
 matplotlib
+reportlab
